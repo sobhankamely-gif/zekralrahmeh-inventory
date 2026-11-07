@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سامانه انبارداری کانون ذکرالرحمه</title>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --panel: #ffffff;
+  --ink: #171512;
+  --muted: #666;
+  --line: #e2dfd7;
+  --brand: #d2a62c;
+  --brand-hover: #b88e1e;
+  --danger: #d93838;
+  --success: #2e7d32;
+  --radius: 12px;
+}
+* { box-sizing: border-box; font-family: Tahoma, 'Vazirmatn', sans-serif; }
+body { margin: 0; padding: 0; background-color: var(--bg); color: var(--ink); direction: rtl; }
+header { background: #000; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--brand); }
+header h1 { margin: 0; font-size: 1.2rem; color: var(--brand); }
+.user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+.btn-logout { background: var(--danger); color: #fff; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+
+nav { background: #1a1a1a; display: flex; overflow-x: auto; padding: 0 10px; }
+nav button { background: none; border: none; color: #ccc; padding: 12px 16px; cursor: pointer; font-size: 0.95rem; white-space: nowrap; border-bottom: 3px solid transparent; }
+nav button.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: bold; }
+
+.container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.card { background: var(--panel); border-radius: var(--radius); padding: 20px; border: 1px solid var(--line); margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+.stat { background: var(--panel); border: 1px solid var(--line); padding: 15px; border-radius: var(--radius); text-align: center; }
+.stat h3 { margin: 0; font-size: 1.8rem; color: var(--brand); }
+.stat p { margin: 5px 0 0; color: var(--muted); font-size: 0.85rem; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+th, td { text-align: right; padding: 10px; border-bottom: 1px solid var(--line); }
+th { background: #f0eee6; color: var(--ink); }
+.badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; color: #fff; font-weight: bold; }
+.badge-available { background: var(--success); }
+.badge-out { background: #e65100; }
+.badge-missing { background: var(--danger); }
+
+form { display: grid; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 0.85rem; font-weight: bold; }
+input, select, textarea { padding: 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.9rem; outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--brand); }
+button.primary { background: var(--brand); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+button.primary:hover { background: var(--brand-hover); }
+button.mini { padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; }
+button.red { background: var(--danger); color: #fff; border: none; }
+
+/* Login Modal Full Screen */
+#loginOverlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; }
+.login-card { background: #fff; width: 340px; padding: 30px; border-radius: var(--radius); text-align: center; border-top: 5px solid var(--brand); }
+.login-card h2 { margin-top: 0; color: #000; }
+
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+.modal.show { display: flex; }
+.modal-body { background: #fff; padding: 20px; border-radius: var(--radius); max-width: 500px; width: 90%; max-height: 85vh; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<!-- صفحه ورود -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <h2>کانون ذکرالرحمه</h2>
+    <p style="color:var(--muted); font-size:0.85rem;">ورود به سامانه انبارداری</p>
+    <form id="loginForm" style="margin-top:20px;">
+      <div class="form-group">
+        <label>نام کاربری</label>
+        <input type="text" id="loginUser" required placeholder="مثال: admin">
+      </div>
+      <div class="form-group">
+        <label>رمز عبور</label>
+        <input type="password" id="loginPass" required>
+      </div>
+      <button type="submit" class="primary" style="margin-top:10px;">ورود به سیستم</button>
+    </form>
+    <p id="loginError" style="color:var(--danger); font-size:0.8rem; margin-top:10px; display:none;">نام کاربری یا رمز عبور نادرست است.</p>
+  </div>
+</div>
+
+<!-- هدر اصلی -->
+<header>
+  <h1>انبارداری کانون ذکرالرحمه</h1>
+  <div class="user-info">
+    <span>کاربر: <b id="displayUserName">—</b> (<span id="displayUserRole">—</span>)</span>
+    <button class="btn-logout" onclick="logout()">خروج</button>
+  </div>
+</header>
+
+<!-- منوی اصلی -->
+<nav>
+  <button class="active" onclick="showTab('dashboard')">داشبورد</button>
+  <button onclick="showTab('inventory')">موجودی انبار</button>
+  <button onclick="showTab('add')">ثبت وسیله</button>
+  <button onclick="showTab('out')">ثبت خروج</button>
+  <button onclick="showTab('return')">ثبت بازگشت</button>
+  <button onclick="showTab('audit')">انبارگردانی</button>
+  <button onclick="showTab('history')">سوابق و گزارشات</button>
+  <button id="tabUsersBtn" style="display:none;" onclick="showTab('users')">مدیریت کاربران</button>
+</nav>
+
+<div class="container">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="tab-content active">
+    <div class="grid">
+      <div class="stat"><h3 id="statTotal">0</h3><p>کل وسایل</p></div>
+      <div class="stat"><h3 id="statAvailable">0</h3><p>موجود در انبار</p></div>
+      <div class="stat"><h3 id="statOut">0</h3><p>خارج شده</p></div>
+      <div class="stat"><h3 id="statMissing">0</h3><p>مفقود شده</p></div>
+    </div>
+  </div>
+
+  <!-- INVENTORY LIST -->
+  <div id="inventory" class="tab-content">
+    <div class="card">
+      <h3>فهرست موجودی انبار</h3>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <input type="text" id="searchInventory" placeholder="جستجو نام یا کد وسیله..." style="flex:1;" oninput="renderInventory()">
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>کد وسیله</th>
+            <th>نام وسیله</th>
+            <th>دسته‌بندی</th>
+            <th>وضعیت</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody id="inventoryRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADD ITEM -->
+  <div id="add" class="tab-content">
+    <div class="card">
+      <h3 id="formTitle">ثبت وسیله جدید</h3>
+      <form id="itemForm">
+        <input type="hidden" id="editId">
+        <div class="form-group"><label>نام وسیله</label><input type="text" id="itemName" required></div>
+        <div class="form-group"><label>کد اختصاصی</label><input type="text" id="itemCode" required placeholder="مثال: KZ-104"></div>
+        <div class="form-group"><label>دسته‌بندی</label><input type="text" id="itemCategory" placeholder="مثال: ظروف، تجهیزات"></div>
+        <div class="form-group"><label>وضعیت اولیه</label>
+          <select id="itemStatus">
+            <option value="موجود">موجود</option>
+            <option value="خارج شده">خارج شده</option>
+            <option value="مفقود">مفقود</option>
+          </select>
+        </div>
+        <div class="form-group"><label>توضیحات</label><textarea id="itemDescription" rows="3"></textarea></div>
+        <button type="submit" class="primary">ذخیره وسیله</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- OUT FORM -->
+  <div id="out" class="tab-content">
+    <div class="card">
+      <h3>ثبت خروج وسیله از انبار</h3>
+      <form id="outForm">
+        <div class="form-group"><label>کد وسیله</label><input type="text" id="outCode" required></div>
+        <div class="form-group"><label>تحویل‌گیرنده (شخص / هیئت)</label><input type="text" id="outPerson" required></div>
+        <div class="form-group"><label>توضیحات / بابت</label><input type="text" id="outNotes"></div>
+        <button type="submit" class="primary">ثبت خروج</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- RETURN FORM -->
+  <div id="return" class="tab-content">
+    <div class="card">
+      <h3>ثبت بازگشت وسیله به انبار</h3>
+      <form id="returnForm">
+        <div class="form-group"><label>کد وسیله</label><input type="text" id="returnCode" required></div>
+        <div class="form-group"><label>تحویل‌دهنده</label><input type="text" id="returnPerson" required></div>
+        <div class="form-group"><label>توضیحات سلامت وسیله</label><input type="text" id="returnNotes"></div>
+        <button type="submit" class="primary">ثبت بازگشت</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- AUDIT -->
+  <div id="audit" class="tab-content">
+    <div class="card">
+      <h3>انبارگردانی دوره‌ای</h3>
+      <p style="font-size:0.85rem; color:var(--muted);">بررسی وضعیت واقعی وسایل انبار</p>
+      <div id="auditList"></div>
+      <button class="primary" style="margin-top:15px;" onclick="saveAudit()">ثبت و نهایی‌سازی انبارگردانی</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="history" class="tab-content">
+    <div class="card">
+      <h3>تاریخچه و سوابق ورود / خروج</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>تاریخ</th>
+            <th>کد وسیله</th>
+            <th>نام وسیله</th>
+            <th>نوع رویداد</th>
+            <th>طرف حساب</th>
+            <th>ثبت‌کننده</th>
+            <th>توضیحات</th>
+          </tr>
+        </thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- USERS MANAGEMENT (Only for Admin) -->
+  <div id="users" class="tab-content">
+    <div class="card">
+      <h3>افزودن کاربر جدید</h3>
+      <form id="userForm">
+        <div class="form-group"><label>نام و نام خانوادگی</label><input type="text" id="uFullName" required></div>
+        <div class="form-group"><label>نام کاربری (انگلیسی)</label><input type="text" id="uUsername" required></div>
+        <div class="form-group"><label>رمز عبور</label><input type="password" id="uPassword" required></div>
+        <div class="form-group"><label>نقش کاربر</label>
+          <select id="uRole">
+            <option value="user">انباردار / کاربر عادی</option>
+            <option value="admin">مدیر کل</option>
+          </select>
+        </div>
+        <button type="submit" class="primary">ایجاد کاربر جدید</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>مدیریت کاربران موجود</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>نام کامل</th>
+            <th>نام کاربری</th>
+            <th>نقش</th>
+            <th>وضعیت حساب</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody id="userRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal Detail -->
+<div id="detailModal" class="modal">
+  <div class="modal-body">
+    <h3 id="mTitle">جزئیات وسیله</h3>
+    <div id="mContent"></div>
+    <button class="mini" style="margin-top:15px;" onclick="closeModal()">بستن</button>
+  </div>
+</div>
+
+<script>
+let db;
+let currentUser = null;
+let items = [], events = [], users = [], auditDraft = {};
+
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('ZekrAlRahmehDB', 2);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('items')) d.createObjectStore('items', {keyPath: 'id'});
+      if(!d.objectStoreNames.contains('events')) d.createObjectStore('events', {keyPath: 'id'});
+      if(!d.objectStoreNames.contains('users')) d.createObjectStore('users', {keyPath: 'username'});
+    };
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+function store(name, mode='readonly') { return db.transaction(name, mode).objectStore(name); }
+
+function getAll(name) {
+  return new Promise(res => {
+    const r = store(name).getAll();
+    r.onsuccess = () => res(r.result || []);
+  });
+}
+
+function put(name, data) {
+  return new Promise((res, rej) => {
+    const r = store(name, 'readwrite').put(data);
+    r.onsuccess = () => res(r.result);
+    r.onerror = e => rej(e.target.error);
+  });
+}
+
+// Authentication Logic
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  const u = $('loginUser').value.trim().toLowerCase();
+  const p = $('loginPass').value.trim();
+  
+  const user = users.find(x => x.username.toLowerCase() === u && x.password === p);
+  if(!user) {
+    $('loginError').style.display = 'block';
+    return;
+  }
+  if(user.disabled) {
+    alert('حساب کاربری شما غیرفعال شده است. با مدیر سیستم تماس بگیرید.');
+    return;
+  }
+
+  currentUser = user;
+  $('loginOverlay').style.display = 'none';
+  $('displayUserName').textContent = user.fullName;
+  $('displayUserRole').textContent = user.role === 'admin' ? 'مدیر کل' : 'انباردار';
+  if(user.role === 'admin') $('tabUsersBtn').style.display = 'inline-block';
+  
+  await refresh();
+};
+
+function logout() {
+  currentUser = null;
+  $('loginOverlay').style.display = 'flex';
+  $('loginForm').reset();
+  $('loginError').style.display = 'none';
+}
+
+async function refresh() {
+  items = await getAll('items');
+  events = await getAll('events');
+  users = await getAll('users');
+
+  // Stats
+  $('statTotal').textContent = items.length;
+  $('statAvailable').textContent = items.filter(x => x.status === 'موجود').length;
+  $('statOut').textContent = items.filter(x => x.status === 'خارج شده').length;
+  $('statMissing').textContent = items.filter(x => x.status === 'مفقود').length;
+
+  renderInventory();
+  renderHistory();
+  renderAudit();
+  renderUsers();
+}
+
+function renderInventory() {
+  const q = $('searchInventory').value.trim().toLowerCase();
+  const list = items.filter(x => !q || x.name.toLowerCase().includes(q) || x.code.toLowerCase().includes(q));
+  $('inventoryRows').innerHTML = list.map(x => `
+    <tr>
+      <td><b>${x.code}</b></td>
+      <td>${x.name}</td>
+      <td>${x.category||'—'}</td>
+      <td><span class="badge badge-${x.status==='موجود'?'available':x.status==='خارج شده'?'out':'missing'}">${x.status}</span></td>
+      <td>
+        <button class="mini" onclick="openDetail('${x.id}')">مشاهده</button>
+        ${currentUser?.role === 'admin' ? `<button class="mini red" onclick="deleteItem('${x.id}')">حذف</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+$('itemForm').onsubmit = async e => {
+  e.preventDefault();
+  const item = {
+    id: $('editId').value || uid(),
+    name: $('itemName').value.trim(),
+    code: $('itemCode').value.trim(),
+    category: $('itemCategory').value.trim(),
+    status: $('itemStatus').value,
+    description: $('itemDescription').value.trim()
+  };
+  await put('items', item);
+  $('itemForm').reset();
+  await refresh();
+  showTab('inventory');
+};
+
+$('outForm').onsubmit = async e => {
+  e.preventDefault();
+  const code = $('outCode').value.trim();
+  const item = items.find(x => x.code === code);
+  if(!item) return alert('کد وسیله یافت نشد.');
+  if(item.status !== 'موجود') return alert('این وسیله در انبار موجود نیست.');
+
+  item.status = 'خارج شده';
+  await put('items', item);
+  await put('events', {
+    id: uid(),
+    type: 'خروج',
+    itemCode: item.code,
+    itemName: item.name,
+    person: $('outPerson').value.trim(),
+    createdByName: currentUser.fullName,
+    date: new Date().toLocaleDateString('fa-IR'),
+    notes: $('outNotes').value.trim()
+  });
+
+  $('outForm').reset();
+  await refresh();
+  showTab('history');
+};
+
+$('returnForm').onsubmit = async e => {
+  e.preventDefault();
+  const code = $('returnCode').value.trim();
+  const item = items.find(x => x.code === code);
+  if(!item) return alert('کد وسیله یافت نشد.');
+
+  item.status = 'موجود';
+  await put('items', item);
+  await put('events', {
+    id: uid(),
+    type: 'بازگشت',
+    itemCode: item.code,
+    itemName: item.name,
+    person: $('returnPerson').value.trim(),
+    createdByName: currentUser.fullName,
+    date: new Date().toLocaleDateString('fa-IR'),
+    notes: $('returnNotes').value.trim()
+  });
+
+  $('returnForm').reset();
+  await refresh();
+  showTab('history');
+};
+
+function renderAudit() {
+  let html = '<table><thead><tr><th>کد</th><th>نام وسیله</th><th>وضعیت واقعی</th></tr></thead><tbody>';
+  items.forEach(x => {
+    if(!auditDraft[x.id]) auditDraft[x.id] = x.status;
+    html += `<tr>
+      <td>${x.code}</td>
+      <td>${x.name}</td>
+      <td>
+        <select onchange="auditDraft['${x.id}']=this.value">
+          <option ${auditDraft[x.id]==='موجود'?'selected':''}>موجود</option>
+          <option ${auditDraft[x.id]==='خارج شده'?'selected':''}>خارج شده</option>
+          <option ${auditDraft[x.id]==='مفقود'?'selected':''}>مفقود</option>
+        </select>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  $('auditList').innerHTML = html;
+}
+
+async function saveAudit() {
+  for(let id in auditDraft) {
+    const item = items.find(x => x.id === id);
+    if(item && item.status !== auditDraft[id]) {
+      item.status = auditDraft[id];
+      await put('items', item);
+      await put('events', {
+        id: uid(),
+        type: 'انبارگردانی',
+        itemCode: item.code,
+        itemName: item.name,
+        person: 'انبارگردانی',
+        createdByName: currentUser.fullName,
+        date: new Date().toLocaleDateString('fa-IR'),
+        notes: `تغییر وضعیت به ${item.status}`
+      });
+    }
+  }
+  await refresh();
+  alert('انبارگردانی با موفقیت ذخیره شد.');
+}
+
+function renderHistory() {
+  $('historyRows').innerHTML = events.sort((a,b)=>b.id.localeCompare(a.id)).map(x => `
+    <tr>
+      <td>${x.date}</td>
+      <td><b>${x.itemCode}</b></td>
+      <td>${x.itemName}</td>
+      <td>${x.type}</td>
+      <td>${x.person||'—'}</td>
+      <td>${x.createdByName||'—'}</td>
+      <td>${x.notes||'—'}</td>
+    </tr>
+  `).join('');
+}
+
+// User Management Logic
+$('userForm').onsubmit = async e => {
+  e.preventDefault();
+  const newUser = {
+    fullName: $('uFullName').value.trim(),
+    username: $('uUsername').value.trim().toLowerCase(),
+    password: $('uPassword').value.trim(),
+    role: $('uRole').value,
+    disabled: false
+  };
+  await put('users', newUser);
+  $('userForm').reset();
+  await refresh();
+  alert('کاربر جدید با موفقیت ایجاد شد.');
+};
+
+function renderUsers() {
+  if(currentUser?.role !== 'admin') return;
+  $('userRows').innerHTML = users.map(u => `
+    <tr>
+      <td>${u.fullName}</td>
+      <td><b>${u.username}</b></td>
+      <td>${u.role === 'admin' ? 'مدیر کل' : 'انباردار'}</td>
+      <td>${u.disabled ? '<span style="color:red">غیرفعال</span>' : '<span style="color:green">فعال</span>'}</td>
+      <td>
+        ${u.username !== 'admin' ? `
+          <button class="mini" onclick="toggleUserStatus('${u.username}')">${u.disabled ? 'فعال‌سازی' : 'غیرفعال‌سازی'}</button>
+        ` : '—'}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleUserStatus(username) {
+  const u = users.find(x => x.username === username);
+  if(u) {
+    u.disabled = !u.disabled;
+    await put('users', u);
+    await refresh();
+  }
+}
+
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  $(tabId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function openDetail(id) {
+  const x = items.find(i => i.id === id);
+  if(!x) return;
+  $('mTitle').textContent = x.name;
+  $('mContent').innerHTML = `
+    <p><b>کد وسیله:</b> ${x.code}</p>
+    <p><b>دسته‌بندی:</b> ${x.category||'—'}</p>
+    <p><b>وضعیت:</b> ${x.status}</p>
+    <p><b>توضیحات:</b> ${x.description||'—'}</p>
+  `;
+  $('detailModal').classList.add('show');
+}
+function closeModal() { $('detailModal').classList.remove('show'); }
+
+window.onload = async () => {
+  db = await openDB();
+  users = await getAll(
